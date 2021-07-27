@@ -13,7 +13,7 @@ protocol EthereumAccountProtocol {
     
     // For Keystore handling
     init?(keyStorage: EthereumKeyStorageProtocol, keystorePassword: String) throws
-    static func create(keyStorage: EthereumKeyStorageProtocol, keystorePassword password: String) throws -> EthereumAccount
+    static func create(keyStorage: EthereumKeyStorageProtocol, keystorePassword password: String, privateKey: Data?) throws -> EthereumAccount
     
     // For non-Keystore formats. This is not recommended, however some apps may wish to implement their own storage.
     init(keyStorage: EthereumKeyStorageProtocol) throws
@@ -70,17 +70,26 @@ public class EthereumAccount: EthereumAccountProtocol {
         }
     }
     
-    public static func create(keyStorage: EthereumKeyStorageProtocol, keystorePassword password: String) throws -> EthereumAccount {
-        guard let privateKey = KeyUtil.generatePrivateKeyData() else {
-            throw EthereumAccountError.createAccountError
-        }
-        
-        do {
-            let encodedData = try KeystoreUtil.encode(privateKey: privateKey, password: password)
-            try keyStorage.storePrivateKey(key: encodedData)
-            return try self.init(keyStorage: keyStorage, keystorePassword: password)
-        } catch {
-            throw EthereumAccountError.createAccountError
+    public static func create(keyStorage: EthereumKeyStorageProtocol, keystorePassword password: String, privateKey: Data? = nil) throws -> EthereumAccount {
+        if let privateKey = privateKey {
+            do {
+                let encodedData = try KeystoreUtil.encode(privateKey: privateKey, password: password)
+                try keyStorage.storePrivateKey(key: encodedData)
+                return try self.init(keyStorage: keyStorage, keystorePassword: password)
+            } catch {
+                throw EthereumAccountError.createAccountError
+            }
+        } else {
+            guard let privateKey = KeyUtil.generatePrivateKeyData() else {
+                throw EthereumAccountError.createAccountError
+            }
+            do {
+                let encodedData = try KeystoreUtil.encode(privateKey: privateKey, password: password)
+                try keyStorage.storePrivateKey(key: encodedData)
+                return try self.init(keyStorage: keyStorage, keystorePassword: password)
+            } catch {
+                throw EthereumAccountError.createAccountError
+            }
         }
     }
     
